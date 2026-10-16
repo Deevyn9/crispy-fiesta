@@ -107,16 +107,16 @@ export default function Hero({ startAnimations }: HeroProps) {
       </nav>
 
       <section className="hero relative h-screen">
-        <div className="hero-video absolute left-0 top-0 overflow-hidden">
-          {/* <video
+        <div className="hero-video absolute left-0 top-0 overflow-hidden ">
+          <video
             className="h-full w-full object-cover"
-            src="/hero-video.mp4"
+            src="https://www.pexels.com/download/video/33444758/"
             autoPlay
             muted
             loop
             playsInline
-          /> */}
-          <div className="bg-red-500 w-full h-full"></div>
+          />
+          {/* <div className="bg-red-500 w-full h-full"></div> */}
         </div>
 
         <div className="relative z-10 flex h-full flex-col justify-end px-6 pb-16 text-white">
