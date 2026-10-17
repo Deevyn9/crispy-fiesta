@@ -108,6 +108,100 @@ function Block({
 export default function Hero({ startAnimations }: HeroProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Built while the preloader is still covering the page, played later.
+  const introRef = useRef<gsap.core.Timeline | null>(null);
+  const readyRef = useRef<Promise<unknown> | null>(null);
+
+  // ---------- Phase 1: prepare the intro (runs on mount, under the preloader) ----------
+  // The hero is rendered immediately, so without this it would sit there fully
+  // visible while the preloader plays, then snap to its "from" state when the
+  // intro begins and animate in again. That reads as a glitch.
+  //
+  // Instead, everything the intro animates is put in its START state here,
+  // before the first paint, so the hero is already hidden under the preloader.
+  // Phase 2 then only ever plays the timeline forward, once.
+  useGSAP(
+    (_context, contextSafe) => {
+      const root = containerRef.current!;
+      const nav = root.querySelector<HTMLElement>(".navbar")!;
+      const videoInner = root.querySelector<HTMLElement>(".hero-video-inner")!;
+      const title = root.querySelector<HTMLElement>(".hero-title")!;
+      const sub = root.querySelector<HTMLElement>(".hero-sub")!;
+
+      gsap.set(nav, { y: -80, opacity: 0 });
+      gsap.set(videoInner, { scale: 0.9 });
+      // Keep the text hidden until it has been split, so unsplit text never shows.
+      gsap.set([title, sub], { visibility: "hidden" });
+
+      let cancelled = false;
+      let titleSplit: SplitText | undefined;
+      let subSplit: SplitText | undefined;
+
+      // Split only after the font has loaded, otherwise the line breaks are
+      // measured with the fallback font and come out wrong.
+      readyRef.current = (document.fonts?.ready ?? Promise.resolve()).then(
+        contextSafe!(() => {
+          if (cancelled) return;
+
+          titleSplit = SplitText.create(title, {
+            type: "words",
+            mask: "words",
+          });
+          subSplit = SplitText.create(sub, {
+            type: "lines",
+            mask: "lines",
+          });
+
+          // The mask clips each word to its line box. With tight display leading
+          // that would shave the descenders (y, g), so extend the clip area
+          // downward and cancel it with a negative margin so layout is unchanged.
+          gsap.set(titleSplit.masks, {
+            paddingBottom: "0.16em",
+            marginBottom: "-0.16em",
+          });
+
+          gsap.set(titleSplit.words, { yPercent: 110, opacity: 0 });
+          gsap.set(subSplit.lines, { yPercent: 110, opacity: 0 });
+          gsap.set([title, sub], { visibility: "visible" });
+
+          introRef.current = gsap
+            .timeline({
+              paused: true,
+              defaults: { ease: "power3.out" },
+              // Back to plain text once the intro is done, so the paragraph
+              // reflows normally when the window is resized.
+              onComplete: () => {
+                titleSplit?.revert();
+                subSplit?.revert();
+              },
+            })
+            .to(videoInner, { scale: 1, duration: 1 })
+            .to(nav, { y: 0, opacity: 1, duration: 0.7 }, "-=0.4")
+            .to(
+              titleSplit.words,
+              { yPercent: 0, opacity: 1, duration: 0.8, stagger: 0.06 },
+              "-=0.3",
+            )
+            .to(
+              subSplit.lines,
+              { yPercent: 0, opacity: 1, duration: 0.8, stagger: 0.08 },
+              "-=0.5",
+            );
+        }),
+      );
+
+      return () => {
+        cancelled = true;
+        introRef.current?.kill();
+        introRef.current = null;
+        titleSplit?.revert();
+        subSplit?.revert();
+      };
+    },
+    { scope: containerRef },
+  );
+
+  // ---------- Phase 2: scrolling + play the intro (after the preloader) ----------
   useGSAP(
     () => {
       if (!startAnimations) return;
@@ -117,6 +211,13 @@ export default function Hero({ startAnimations }: HeroProps) {
       const slot = root.querySelector<HTMLElement>(".about-video-slot")!;
       const copyPort = root.querySelector<HTMLElement>(".about-copy")!;
       const copyInner = root.querySelector<HTMLElement>(".about-copy-inner")!;
+
+      // Play the prepared intro (waits for the font + split if they are not
+      // ready yet).
+      let cancelled = false;
+      readyRef.current?.then(() => {
+        if (!cancelled) introRef.current?.play();
+      });
 
       // ---------- Smooth scrolling (Lenis, driven by GSAP's ticker) ----------
       // Lenis eases the page scroll itself, and ScrollTrigger is told about every
@@ -142,49 +243,6 @@ export default function Hero({ startAnimations }: HeroProps) {
 
       // Without Lenis, fall back to a short GSAP-side smoothing.
       const scrub = lenis ? true : 0.6;
-
-      // ---------- Intro (runs once after the preloader) ----------
-      // Scales the INNER wrapper so it never fights the scroll animation,
-      // which owns the transform of the outer .hero-video.
-      const intro = gsap.timeline();
-
-      intro.fromTo(
-        ".hero-video-inner",
-        { scale: 0.9 },
-        { scale: 1, duration: 1, ease: "power3.out" },
-      );
-
-      intro.fromTo(
-        ".navbar",
-        { y: -80, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.7, ease: "power3.out" },
-        "-=0.4",
-      );
-
-      const split = SplitText.create(".hero-title", {
-        type: "words",
-        mask: "words",
-      });
-
-      // The mask clips each word to its line box. With tight display leading
-      // that would shave the descenders (y, g), so extend the clip area
-      // downward and cancel it with a negative margin so layout is unchanged.
-      gsap.set(split.masks, {
-        paddingBottom: "0.16em",
-        marginBottom: "-0.16em",
-      });
-
-      intro.from(
-        split.words,
-        {
-          yPercent: 110,
-          opacity: 0,
-          duration: 0.8,
-          stagger: 0.06,
-          ease: "power3.out",
-        },
-        "-=0.3",
-      );
 
       // ---------- 1. Hero scroll: full screen -> beside the About text ----------
       // The video lives INSIDE the About section (absolutely positioned, one
@@ -282,6 +340,7 @@ export default function Hero({ startAnimations }: HeroProps) {
       document.fonts?.ready.then(() => ScrollTrigger.refresh());
 
       return () => {
+        cancelled = true;
         if (tick) gsap.ticker.remove(tick);
         lenis?.destroy();
         gsap.ticker.lagSmoothing(500, 33); // GSAP's default
@@ -334,7 +393,7 @@ export default function Hero({ startAnimations }: HeroProps) {
             Play where the game feels alive.
           </h1>
 
-          <p className="mt-6 max-w-[27rem] text-[clamp(1rem,1.2vw,1.1875rem)] font-normal leading-[1.5] tracking-[-0.012em] text-white/80 [text-wrap:pretty]">
+          <p className="hero-sub mt-6 max-w-[27rem] text-[clamp(1rem,1.2vw,1.1875rem)] font-normal leading-[1.5] tracking-[-0.012em] text-white/80 [text-wrap:pretty]">
             A premium padel court built for fast rallies, good people, and long
             evenings.
           </p>
