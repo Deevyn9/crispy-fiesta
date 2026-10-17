@@ -190,6 +190,19 @@ export default function Hero({ startAnimations }: HeroProps) {
         },
       );
 
+      // The scrim only exists to keep the hero text readable, so it fades out
+      // over the same scroll range while the video shrinks into its slot.
+      gsap.to(".hero-video-scrim", {
+        opacity: 0,
+        ease: "none",
+        scrollTrigger: {
+          trigger: ".hero",
+          start: "top top",
+          end: "bottom top",
+          scrub: 1,
+        },
+      });
+
       // ---------- 2. About: pinned at 100vh, copy scrolls, video stays ----------
       // While About is pinned, the long copy slides up inside its clipped
       // column. When the last line is reached, the pin releases and the whole
@@ -256,10 +269,6 @@ export default function Hero({ startAnimations }: HeroProps) {
 
       {/* HERO: exactly 100vh */}
       <section className="hero relative h-[100vh]">
-        {/* Soft scrim so the type stays legible on bright footage.
-            z-25: above the video (z-20), below the text (z-30). */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[25] h-[70%] bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-
         {/* z-30 so the text sits above the video */}
         <div className="relative z-30 flex h-full flex-col justify-end px-6 pb-16">
           <h1 className="hero-title max-w-[14ch] text-[clamp(3rem,7.4vw,8.5rem)] font-semibold leading-[0.95] tracking-[-0.055em] text-[#c8f31d] [text-wrap:balance]">
@@ -280,7 +289,7 @@ export default function Hero({ startAnimations }: HeroProps) {
             (z-20), but below the About copy (z-30).
             CSS values are only the pre-JS fallback; GSAP drives them. */}
         <div className="hero-video pointer-events-none absolute left-0 top-[-100vh] z-20 h-[100vh] w-full overflow-hidden bg-black">
-          <div className="hero-video-inner h-full w-full">
+          <div className="hero-video-inner relative h-full w-full">
             <video
               className="h-full w-full object-cover"
               src="https://www.pexels.com/download/video/33444758/"
@@ -289,6 +298,11 @@ export default function Hero({ startAnimations }: HeroProps) {
               loop
               playsInline
             />
+
+            {/* Scrim lives ON the video, so it resizes and moves with it
+                (a separate div in the hero would slide across the video as
+                you scroll). It fades out while the video shrinks. */}
+            <div className="hero-video-scrim pointer-events-none absolute inset-x-0 bottom-0 h-[70%] bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
           </div>
         </div>
 
@@ -303,7 +317,7 @@ export default function Hero({ startAnimations }: HeroProps) {
 
         {/* Clipped column; the inner block is translated by GSAP.
             The mask fades text out just before it slides under the nav. */}
-        <div className="about-copy relative z-30 h-full min-w-0 flex-1 overflow-hidden [-webkit-mask-image:linear-gradient(to_bottom,transparent_0,transparent_1rem,#000_3.5rem)] [mask-image:linear-gradient(to_bottom,transparent_0,transparent_1rem,#000_3.5rem)]">
+        <div className="about-copy relative z-30 h-full min-w-0 flex-1 overflow-hidden [-webkit-mask-image:linear-gradient(to_bottom,transparent_0,transparent_2rem,#000_4rem)] [mask-image:linear-gradient(to_bottom,transparent_0,transparent_2rem,#000_4rem)]">
           <div
             className="about-copy-inner pb-24"
             style={{ paddingTop: TOP_GAP }}
