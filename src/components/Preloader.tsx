@@ -9,6 +9,26 @@ type PreloaderProps = {
   onFinish: () => void;
 };
 
+const BALL_SIZE = 24; // h-6 w-6
+
+// Smallest scale that still covers the whole screen from the ball's centre.
+// (The old value of 500 made the ball ~12,000px wide, which is what made the
+// last part of the animation choppy.)
+const coverScale = () => {
+  const b = document.querySelector(".preloader-ball")!.getBoundingClientRect();
+  const cx = b.left + b.width / 2;
+  const cy = b.top + b.height / 2;
+
+  const farthestCorner = Math.max(
+    Math.hypot(cx, cy),
+    Math.hypot(innerWidth - cx, cy),
+    Math.hypot(cx, innerHeight - cy),
+    Math.hypot(innerWidth - cx, innerHeight - cy),
+  );
+
+  return (farthestCorner / (BALL_SIZE / 2)) * 1.15; // 15% safety margin
+};
+
 export default function Preloader({ onFinish }: PreloaderProps) {
   const [isHidden, setIsHidden] = useState(false);
 
@@ -78,11 +98,11 @@ export default function Preloader({ onFinish }: PreloaderProps) {
         "-=0.15",
       )
 
-      // 6. Ball expands fullscreen
+      // 6. Ball expands fullscreen (only as far as it needs to cover the screen)
       .to(
         ".preloader-ball",
         {
-          scale: 500,
+          scale: coverScale,
           duration: 1,
           ease: "power4.inOut",
         },
