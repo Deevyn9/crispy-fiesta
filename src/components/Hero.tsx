@@ -14,6 +14,10 @@ type HeroProps = {
 // One value drives both, so they always line up. Nav is about 3.25rem tall.
 const TOP_GAP = "4rem";
 
+// 65vw wide, but never taller than the space between the top gap and an equal
+// bottom gap (16:9), so the video can never touch the bottom of the 100vh About.
+const VIDEO_WIDTH = `min(65vw, calc((100vh - ${TOP_GAP} - ${TOP_GAP}) * 16 / 9))`;
+
 export default function Hero({ startAnimations }: HeroProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -172,8 +176,8 @@ export default function Hero({ startAnimations }: HeroProps) {
 
         {/* Empty space where the video lands (65vw, 16:9, no radius) */}
         <div
-          className="about-video-slot aspect-video w-[65vw] shrink-0"
-          style={{ marginTop: TOP_GAP }}
+          className="about-video-slot aspect-video shrink-0"
+          style={{ marginTop: TOP_GAP, width: VIDEO_WIDTH }}
         />
 
         {/* Clipped column; the inner block is translated by GSAP */}
