@@ -174,9 +174,12 @@ export default function Hero({ startAnimations }: HeroProps) {
           </div>
         </div>
 
-        {/* Empty space where the video lands (65vw, 16:9, no radius) */}
+        {/* Empty space where the video lands (65vw, 16:9, no radius).
+            self-start is required: flex items stretch to the full row height by
+            default, which overrides aspect-video and made the slot (and so the
+            video) run all the way down to the bottom edge of About. */}
         <div
-          className="about-video-slot aspect-video shrink-0"
+          className="about-video-slot aspect-video shrink-0 self-start"
           style={{ marginTop: TOP_GAP, width: VIDEO_WIDTH }}
         />
 
