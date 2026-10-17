@@ -3,8 +3,10 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText } from "gsap/SplitText";
 import { useGSAP } from "@gsap/react";
+import Lenis from "lenis";
 
-// npm i @fontsource-variable/geist @fontsource-variable/geist-mono
+// npm i lenis @fontsource-variable/geist @fontsource-variable/geist-mono
+import "lenis/dist/lenis.css";
 import "@fontsource-variable/geist";
 import "@fontsource-variable/geist-mono";
 
@@ -111,14 +113,39 @@ export default function Hero({ startAnimations }: HeroProps) {
       if (!startAnimations) return;
 
       const root = containerRef.current!;
-      const hero = root.querySelector<HTMLElement>(".hero")!;
+      const video = root.querySelector<HTMLElement>(".hero-video")!;
       const slot = root.querySelector<HTMLElement>(".about-video-slot")!;
       const copyPort = root.querySelector<HTMLElement>(".about-copy")!;
       const copyInner = root.querySelector<HTMLElement>(".about-copy-inner")!;
 
+      // ---------- Smooth scrolling (Lenis, driven by GSAP's ticker) ----------
+      // Lenis eases the page scroll itself, and ScrollTrigger is told about every
+      // Lenis frame, so scrubbed animations follow the eased position. Because
+      // Lenis already does the smoothing, scrubs below are 1:1 (scrub: true);
+      // stacking a second ease on top is what makes scrubs feel laggy and mushy.
+      // Users who prefer reduced motion keep native scrolling.
+      const reduceMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+
+      let lenis: Lenis | undefined;
+      let tick: ((time: number) => void) | undefined;
+
+      if (!reduceMotion) {
+        const instance = new Lenis({ lerp: 0.09 });
+        lenis = instance;
+        instance.on("scroll", ScrollTrigger.update);
+        tick = (time) => instance.raf(time * 1000);
+        gsap.ticker.add(tick);
+        gsap.ticker.lagSmoothing(0);
+      }
+
+      // Without Lenis, fall back to a short GSAP-side smoothing.
+      const scrub = lenis ? true : 0.6;
+
       // ---------- Intro (runs once after the preloader) ----------
       // Scales the INNER wrapper so it never fights the scroll animation,
-      // which owns the size/position of the outer .hero-video.
+      // which owns the transform of the outer .hero-video.
       const intro = gsap.timeline();
 
       intro.fromTo(
@@ -159,32 +186,59 @@ export default function Hero({ startAnimations }: HeroProps) {
         "-=0.3",
       );
 
-      // ---------- 1. Hero scroll: full screen -> 65vw beside the About text ----------
-      // The video lives INSIDE the About section (absolutely positioned), so it
-      // always sits above the About background and travels with the section.
-      // The About section's top is at the hero's bottom edge, so a hero-sized
-      // video starts at top = -heroHeight (exactly covering the hero) and
-      // ends at the empty slot next to the About text. The slot's left edge is
-      // on the same px-6 line as the nav and hero text.
+      // ---------- 1. Hero scroll: full screen -> beside the About text ----------
+      // The video lives INSIDE the About section (absolutely positioned, one
+      // hero-height above it), so it always sits above the About background and
+      // travels with the section.
+      //
+      // It is animated with transform (translate + scale) and clip-path ONLY.
+      // Those run on the compositor and never trigger layout. The previous
+      // version tweened width/height/top/left, which forces a full layout pass
+      // on every scroll frame, and that is what felt jerky.
+      //
+      // The video keeps its full-screen layout box. We scale it uniformly so it
+      // covers the slot, then clip away whatever overflows the slot (centred),
+      // so the footage is never stretched or squashed.
+      gsap.set(video, { transformOrigin: "0 0", force3D: true });
+
+      const fit = () => {
+        const vw = video.offsetWidth;
+        const vh = video.offsetHeight;
+        const sw = slot.offsetWidth;
+        const sh = slot.offsetHeight;
+
+        const s = Math.max(sw / vw, sh / vh); // cover-fit scale
+        const cropX = Math.max(0, vw - sw / s) / 2; // clipped per side (local px)
+        const cropY = Math.max(0, vh - sh / s) / 2;
+
+        return {
+          s,
+          cropX,
+          cropY,
+          // The video box starts one hero-height above About (top: -100vh), so
+          // y has to cover that distance plus the slot's offset.
+          x: slot.offsetLeft - cropX * s,
+          y: slot.offsetTop + vh - cropY * s,
+        };
+      };
+
       gsap.fromTo(
-        ".hero-video",
+        video,
+        { x: 0, y: 0, scale: 1, clipPath: "inset(0px 0px 0px 0px)" },
         {
-          top: () => -hero.offsetHeight,
-          left: 0,
-          width: () => root.clientWidth,
-          height: () => hero.offsetHeight,
-        },
-        {
-          top: () => slot.offsetTop,
-          left: () => slot.offsetLeft,
-          width: () => slot.offsetWidth,
-          height: () => slot.offsetHeight,
+          x: () => fit().x,
+          y: () => fit().y,
+          scale: () => fit().s,
+          clipPath: () => {
+            const { cropX, cropY } = fit();
+            return `inset(${cropY}px ${cropX}px ${cropY}px ${cropX}px)`;
+          },
           ease: "none",
           scrollTrigger: {
             trigger: ".hero",
             start: "top top",
             end: "bottom top", // ends exactly when About reaches the top
-            scrub: 1, // 1s of smoothing for a silky, eased follow
+            scrub,
             invalidateOnRefresh: true,
           },
         },
@@ -199,7 +253,7 @@ export default function Hero({ startAnimations }: HeroProps) {
           trigger: ".hero",
           start: "top top",
           end: "bottom top",
-          scrub: 1,
+          scrub,
         },
       });
 
@@ -219,14 +273,19 @@ export default function Hero({ startAnimations }: HeroProps) {
           start: "top top",
           end: () => `+=${Math.max(copyOverflow(), 1)}`,
           pin: true,
-          anticipatePin: 1,
-          scrub: 1,
+          scrub,
           invalidateOnRefresh: true,
         },
       });
 
       // Fonts change text height, so re-measure once they are ready.
       document.fonts?.ready.then(() => ScrollTrigger.refresh());
+
+      return () => {
+        if (tick) gsap.ticker.remove(tick);
+        lenis?.destroy();
+        gsap.ticker.lagSmoothing(500, 33); // GSAP's default
+      };
     },
     {
       scope: containerRef,
@@ -287,8 +346,9 @@ export default function Hero({ startAnimations }: HeroProps) {
       <section className="about relative flex h-[100vh] flex-row gap-6 bg-[#eeeeee] px-6 text-[color:var(--ink)]">
         {/* The video is a child of About, so it is above the About background
             (z-20), but below the About copy (z-30).
-            CSS values are only the pre-JS fallback; GSAP drives them. */}
-        <div className="hero-video pointer-events-none absolute left-0 top-[-100vh] z-20 h-[100vh] w-full overflow-hidden bg-black">
+            This is its full-screen starting box; GSAP moves it with transform
+            and clip-path only (never width/height/top/left). */}
+        <div className="hero-video pointer-events-none absolute left-0 top-[-100vh] z-20 h-[100vh] w-full overflow-hidden bg-black will-change-transform">
           <div className="hero-video-inner relative h-full w-full">
             <video
               className="h-full w-full object-cover"
@@ -392,8 +452,9 @@ export default function Hero({ startAnimations }: HeroProps) {
         </div>
       </section>
 
-      {/* SECOND SECTION: flex row, heading left and copy right at all sizes */}
-      <section className="flex min-h-screen flex-row items-start justify-between gap-10 bg-white px-6 py-24 text-[color:var(--ink)]">
+      {/* SECOND SECTION: flex row, heading left and copy right at all sizes.
+          Sized by its content: 96px on top, 100px on the bottom. */}
+      <section className="flex flex-row items-start justify-between gap-10 bg-white px-6 pb-[100px] pt-24 text-[color:var(--ink)]">
         <div className="min-w-0 flex-1">
           <Eyebrow>Community</Eyebrow>
 
