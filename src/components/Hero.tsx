@@ -10,6 +10,10 @@ type HeroProps = {
   startAnimations: boolean;
 };
 
+// Gap between the top of the screen and the video / About text.
+// One value drives both, so they always line up. Nav is about 3.25rem tall.
+const TOP_GAP = "4rem";
+
 export default function Hero({ startAnimations }: HeroProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -167,11 +171,17 @@ export default function Hero({ startAnimations }: HeroProps) {
         </div>
 
         {/* Empty space where the video lands (65vw, 16:9, no radius) */}
-        <div className="about-video-slot mt-[4.5rem] aspect-video w-[65vw] shrink-0" />
+        <div
+          className="about-video-slot aspect-video w-[65vw] shrink-0"
+          style={{ marginTop: TOP_GAP }}
+        />
 
         {/* Clipped column; the inner block is translated by GSAP */}
         <div className="about-copy relative z-30 h-full min-w-0 flex-1 overflow-hidden">
-          <div className="about-copy-inner pb-24 pt-[4.5rem]">
+          <div
+            className="about-copy-inner pb-24"
+            style={{ paddingTop: TOP_GAP }}
+          >
             <h2 className="text-[clamp(2rem,3.2vw,3.5rem)] font-extrabold leading-tight">
               About the court
             </h2>
