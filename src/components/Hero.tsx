@@ -29,8 +29,6 @@ const VIDEO_WIDTH = `min(65vw, calc((100vh - ${TOP_GAP} - ${TOP_GAP}) * 16 / 9))
 // Geist for text and display, Geist Mono for small labels.
 const SANS =
   '"Geist Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
-const MONO =
-  '"Geist Mono Variable", ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 
 // Ink scale (all pass WCAG AA on #eeeeee and white):
 //   ink   #0a0a09  headings
@@ -46,32 +44,10 @@ const ROOT_VARS = {
   "--hairline": "rgba(10, 10, 9, 0.12)",
 } as CSSProperties;
 
-// Small mono label with a tennis-green dot.
-function Eyebrow({ children }: { children: ReactNode }) {
-  return (
-    <p
-      className="flex items-center gap-2 text-[11px] font-medium uppercase leading-none tracking-[0.12em] text-[color:var(--muted)]"
-      style={{ fontFamily: MONO }}
-    >
-      <span className="h-1.5 w-1.5 rounded-full bg-[#c8f31d] ring-1 ring-black/20" />
-      {children}
-    </p>
-  );
-}
-
-// Intro paragraph: larger, darker.
-function Lede({ children }: { children: ReactNode }) {
-  return (
-    <p className="text-[clamp(1.125rem,1.45vw,1.375rem)] font-normal leading-[1.45] tracking-[-0.014em] text-[color:var(--lede)] [text-wrap:pretty]">
-      {children}
-    </p>
-  );
-}
-
 // Running text: quieter, comfortable measure.
 function Body({ children }: { children: ReactNode }) {
   return (
-    <p className="mt-5 max-w-[36rem] text-[clamp(0.9375rem,1.05vw,1.0625rem)] font-normal leading-[1.7] tracking-[-0.006em] text-[color:var(--body)] [text-wrap:pretty]">
+    <p className="mt-5 font-semibold max-w-[36rem] text-[clamp(0.9375rem,1.05vw,1.0625rem)] font-normal leading-[1.7] tracking-[-0.006em] text-[color:var(--body)] [text-wrap:pretty]">
       {children}
     </p>
   );
@@ -79,7 +55,6 @@ function Body({ children }: { children: ReactNode }) {
 
 // Numbered subsection with a hairline above it.
 function Block({
-  index,
   title,
   children,
 }: {
@@ -88,14 +63,8 @@ function Block({
   children: ReactNode;
 }) {
   return (
-    <div className="mt-14 border-t border-[color:var(--hairline)] pt-5">
+    <div className="mt-14  pt-5">
       <div className="flex items-baseline gap-3">
-        <span
-          className="text-[11px] font-medium leading-none tracking-[0.08em] text-[color:var(--muted)]"
-          style={{ fontFamily: MONO }}
-        >
-          {index}
-        </span>
         <h3 className="text-[clamp(1.25rem,1.55vw,1.5rem)] font-semibold leading-[1.15] tracking-[-0.025em] text-[color:var(--ink)]">
           {title}
         </h3>
@@ -402,7 +371,7 @@ export default function Hero({ startAnimations }: HeroProps) {
 
       {/* ABOUT: exactly 100vh, #eeeeee, flex row. Video (65vw) on the left,
           scrolling copy on the right. */}
-      <section className="about relative flex h-[100vh] flex-row gap-6 bg-[#eeeeee] px-6 text-[color:var(--ink)]">
+      <section className="about relative flex h-[100vh] flex-row gap-6 bg-[#f9f9f9] px-6 text-[color:var(--ink)]">
         {/* The video is a child of About, so it is above the About background
             (z-20), but below the About copy (z-30).
             This is its full-screen starting box; GSAP moves it with transform
@@ -441,18 +410,18 @@ export default function Hero({ startAnimations }: HeroProps) {
             className="about-copy-inner pb-24"
             style={{ paddingTop: TOP_GAP }}
           >
-            <Eyebrow>The court</Eyebrow>
+            {/* <Eyebrow>The court</Eyebrow> */}
 
             <h2 className="mt-5 text-[clamp(2.25rem,3.9vw,4.25rem)] font-semibold leading-[1] tracking-[-0.045em] text-[color:var(--ink)] [text-wrap:balance]">
               About the court
             </h2>
 
             <div className="mt-8 max-w-[36rem]">
-              <Lede>
+              <Body>
                 Padel Point is a modern court designed around pace, precision,
                 and community. Whether you are learning the basics or chasing
                 competitive matches, the court is built to keep you playing.
-              </Lede>
+              </Body>
             </div>
 
             <Body>
@@ -515,8 +484,6 @@ export default function Hero({ startAnimations }: HeroProps) {
           Sized by its content: 96px on top, 100px on the bottom. */}
       <section className="flex flex-row items-start justify-between gap-10 bg-white px-6 pb-[100px] pt-24 text-[color:var(--ink)]">
         <div className="min-w-0 flex-1">
-          <Eyebrow>Community</Eyebrow>
-
           <h2 className="mt-6 max-w-[11ch] text-[clamp(2.5rem,6vw,6.5rem)] font-semibold leading-[0.97] tracking-[-0.055em] [text-wrap:balance]">
             Built for rallies, made for people.
           </h2>
@@ -524,12 +491,12 @@ export default function Hero({ startAnimations }: HeroProps) {
 
         <div className="min-w-0 flex-1 pt-[2.4rem]">
           <div className="max-w-[36rem]">
-            <Lede>
+            <Body>
               Padel is fast, social, and endlessly replayable. The glass walls
               keep the ball alive, the smaller court keeps every point within
               reach, and the doubles format makes every game feel like a
               conversation.
-            </Lede>
+            </Body>
           </div>
 
           <Body>
