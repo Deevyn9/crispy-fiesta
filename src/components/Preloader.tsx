@@ -103,6 +103,7 @@ export default function Preloader({ onFinish }: PreloaderProps) {
         ".preloader-ball",
         {
           scale: coverScale,
+          rotate: 90,
           duration: 1,
           ease: "power4.inOut",
         },
